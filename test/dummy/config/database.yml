@@ -10,8 +10,9 @@ mysql: &mysql
 
 postgresql: &postgresql
   adapter: postgresql
-  username: postgres
-  password:
+  username: <%= ENV.fetch("PGUSER", "postgres") %>
+  password: <%= ENV.fetch("PGPASSWORD", "") %>
+  host: <%= ENV.fetch("PGHOST", "localhost") %>
   min_messages: ERROR
 
 defaults: &defaults

@@ -13,7 +13,9 @@ Gem::Specification.new do |s|
 
   s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
 
-  s.add_dependency "activesupport", ">= 3.0"
-  s.add_dependency "activerecord", ">= 3.0"
-  s.add_development_dependency "rails", ">= 3.1"
+  s.required_ruby_version = ">= 3.4.5"
+
+  s.add_dependency "activesupport", ">= 7.0"
+  s.add_dependency "activerecord", ">= 7.0"
+  s.add_development_dependency "rails", ">= 7.0"
 end
