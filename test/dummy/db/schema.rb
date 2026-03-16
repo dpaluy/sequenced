@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_02_16_124804) do
+ActiveRecord::Schema.define(version: 2026_03_16_120000) do
 
   create_table "accounts", force: :cascade do |t|
     t.string "name"
@@ -48,6 +48,22 @@ ActiveRecord::Schema.define(version: 2019_02_16_124804) do
     t.integer "sequential_id", null: false
     t.integer "burrow_id"
     t.index ["sequential_id", "burrow_id"], name: "unique_concurrent", unique: true
+  end
+
+  create_table "deadlock_alphas", force: :cascade do |t|
+    t.string "name"
+    t.integer "sequential_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sequential_id"], name: "index_deadlock_alphas_on_sequential_id", unique: true
+  end
+
+  create_table "deadlock_beta", force: :cascade do |t|
+    t.string "name"
+    t.integer "sequential_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sequential_id"], name: "index_deadlock_beta_on_sequential_id", unique: true
   end
 
   create_table "doppelgangers", force: :cascade do |t|
