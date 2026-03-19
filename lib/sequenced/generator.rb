@@ -1,3 +1,6 @@
+require "digest"
+require "json"
+
 module Sequenced
   class Generator
     attr_reader :record, :scope, :column, :table, :start_at, :skip
@@ -14,7 +17,7 @@ module Sequenced
     def set
       return if skip? || id_set?
 
-      lock_table
+      lock_sequence
       record.send(:"#{column}=", next_id)
     end
 
@@ -39,7 +42,7 @@ module Sequenced
     end
 
     def unique?(id)
-      build_scope(*scope) do
+      build_scope do
         rel = base_relation
         rel = rel.where.not(record.class.primary_key => record.id) if record.persisted?
         rel.where("#{table}.#{column}" => id)
@@ -48,10 +51,11 @@ module Sequenced
 
   private
 
-    def lock_table
-      if postgresql?
-        record.class.connection.execute("LOCK TABLE #{record.class.table_name} IN EXCLUSIVE MODE")
-      end
+    def lock_sequence
+      return unless postgresql?
+
+      key1, key2 = advisory_lock_keys
+      record.class.connection.execute("SELECT pg_advisory_xact_lock(#{key1}, #{key2})")
     end
 
     def postgresql?
@@ -64,25 +68,57 @@ module Sequenced
     end
 
     def find_last_record
-      build_scope(*scope) do
+      build_scope do
         base_relation
           .where("#{table}.#{column} IS NOT NULL")
           .order("#{table}.#{column} DESC")
       end.first
     end
 
-    def build_scope(*columns)
+    def advisory_lock_keys
+      Digest::SHA256.digest(lock_identity).unpack("l>l>")
+    end
+
+    def lock_identity
+      JSON.generate([
+        "sequenced",
+        table.to_s,
+        column.to_s,
+        resolved_scope_pairs
+      ])
+    end
+
+    def resolved_scope_pairs
+      scope_columns.map do |scope_column|
+        [scope_column.to_s, scope_value(scope_column)]
+      end
+    end
+
+    def build_scope
       rel = yield
-      columns.each do |c|
-        if c.to_s.include? '.'
-          accessor, column = c.split('.')
+      scope_columns.each do |scope_column|
+        if scope_column.to_s.include? "."
+          accessor, column = scope_column.to_s.split(".", 2)
           table = record.class.reflections[accessor].table_name
-          rel = rel.joins(accessor.to_sym).includes(accessor.to_sym).where("#{table}.#{column}" => record.send(column))
+          rel = rel.joins(accessor.to_sym).includes(accessor.to_sym).where("#{table}.#{column}" => scope_value(scope_column))
         else
-          rel = rel.where(c => record.send(c))
+          rel = rel.where(scope_column => scope_value(scope_column))
         end
       end
       rel
+    end
+
+    def scope_columns
+      Array(scope).compact
+    end
+
+    def scope_value(scope_column)
+      if scope_column.to_s.include? "."
+        _accessor, column_name = scope_column.to_s.split(".", 2)
+        record.send(column_name)
+      else
+        record.send(scope_column)
+      end
     end
 
     def max(*values)
